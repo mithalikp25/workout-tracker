@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+"""
+Workout Tracker Backend API
+Flask-based REST API for the workout tracker application.
+"""
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import json
+import os
+import datetime
+from typing import Dict, List, Optional
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend communication
+
+class WorkoutTracker:
+    def __init__(self, data_file: str = "workouts.json"):
+        self.data_file = data_file
+        self.workouts = self.load_data()
+    
+    def load_data(self) -> List[Dict]:
+        """Load workout data from JSON file."""
+        if os.path.exists(self.data_file):
+            try:
+                with open(self.data_file, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                return []
+        return []
+    
+    def save_data(self) -> None:
+        """Save workout data to JSON file."""
+        with open(self.data_file, 'w') as f:
+            json.dump(self.workouts, f, indent=2, default=str)
+    
+    def add_workout(self, workout_type: str, duration: int, exercises: List[Dict], 
+                   notes: str = "", date: str = None) -> Dict:
+        """Add a new workout session."""
+        if date is None:
+            date = datetime.datetime.now().isoformat()
+        
+        workout = {
+            "id": len(self.workouts) + 1,
+            "date": date,
+            "type": workout_type,
+            "duration_minutes": duration,
+            "exercises": exercises,
+            "notes": notes,
+            "total_calories": self.calculate_calories(exercises, duration)
+        }
+        
+        self.workouts.append(workout)
+        self.save_data()
+        return workout
+    
+    def calculate_calories(self, exercises: List[Dict], duration: int) -> int:
+        """Estimate calories burned based on exercises and duration."""
+        base_rate = 5  # calories per minute base rate
+        intensity_multiplier = 1.0
+        
+        for exercise in exercises:
+            if exercise.get('type', '').lower() in ['cardio', 'running', 'cycling']:
+                intensity_multiplier += 0.3
+            elif exercise.get('type', '').lower() in ['strength', 'weightlifting', 'resistance']:
+                intensity_multiplier += 0.2
+        
+        return int(duration * base_rate * intensity_multiplier)
+    
+    def get_workouts(self, limit: int = None) -> List[Dict]:
+        """Get workouts sorted by date (most recent first)."""
+        sorted_workouts = sorted(self.workouts, key=lambda x: x['date'], reverse=True)
+        return sorted_workouts[:limit] if limit else sorted_workouts
+    
+    def get_workout_by_id(self, workout_id: int) -> Optional[Dict]:
+        """Get a specific workout by ID."""
+        return next((w for w in self.workouts if w['id'] == workout_id), None)
+    
+    def delete_workout(self, workout_id: int) -> bool:
+        """Delete a workout by ID."""
+        initial_count = len(self.workouts)
+        self.workouts = [w for w in self.workouts if w['id'] != workout_id]
+        
+        if len(self.workouts) < initial_count:
+            self.save_data()
+            return True
+        return False
+    
+    def get_stats(self) -> Dict:
+        """Get workout statistics."""
+        if not self.workouts:
+            return {
+                "total_workouts": 0,
+                "total_duration": 0,
+                "total_calories": 0,
+                "average_duration": 0,
+                "recent_workouts_30d": 0,
+                "workout_types": {}
+            }
+        
+        total_workouts = len(self.workouts)
+        total_duration = sum(w['duration_minutes'] for w in self.workouts)
+        total_calories = sum(w['total_calories'] for w in self.workouts)
+        
+        # Recent activity (last 30 days)
+        thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
+        recent_workouts = [
+            w for w in self.workouts 
+            if datetime.datetime.fromisoformat(w['date']) > thirty_days_ago
+        ]
+        
+        workout_types = {}
+        for workout in self.workouts:
+            workout_type = workout['type']
+            workout_types[workout_type] = workout_types.get(workout_type, 0) + 1
+        
+        return {
+            "total_workouts": total_workouts,
+            "total_duration": total_duration,
+            "total_calories": total_calories,
+            "average_duration": total_duration // total_workouts if total_workouts > 0 else 0,
+            "recent_workouts_30d": len(recent_workouts),
+            "workout_types": workout_types
+        }
+
+# Initialize tracker
+tracker = WorkoutTracker()
+
+@app.route('/api/workouts', methods=['GET'])
+def get_workouts():
+    """Get all workouts with optional limit."""
+    limit = request.args.get('limit', type=int)
+    workouts = tracker.get_workouts(limit)
+    return jsonify({"success": True, "data": workouts})
+
+@app.route('/api/workouts', methods=['POST'])
+def add_workout():
+    """Add a new workout."""
+    try:
+        data = request.get_json()
+        
+        required_fields = ['type', 'duration_minutes', 'exercises']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"success": False, "error": f"Missing required field: {field}"}), 400
+        
+        workout = tracker.add_workout(
+            workout_type=data['type'],
+            duration=data['duration_minutes'],
+            exercises=data['exercises'],
+            notes=data.get('notes', ''),
+            date=data.get('date')
+        )
+        
+        return jsonify({"success": True, "data": workout}), 201
+    
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/workouts/<int:workout_id>', methods=['GET'])
+def get_workout(workout_id):
+    """Get a specific workout by ID."""
+    workout = tracker.get_workout_by_id(workout_id)
+    
+    if workout:
+        return jsonify({"success": True, "data": workout})
+    else:
+        return jsonify({"success": False, "error": "Workout not found"}), 404
+
+@app.route('/api/workouts/<int:workout_id>', methods=['DELETE'])
+def delete_workout(workout_id):
+    """Delete a workout by ID."""
+    success = tracker.delete_workout(workout_id)
+    
+    if success:
+        return jsonify({"success": True, "message": "Workout deleted successfully"})
+    else:
+        return jsonify({"success": False, "error": "Workout not found"}), 404
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Get workout statistics."""
+    stats = tracker.get_stats()
+    return jsonify({"success": True, "data": stats})
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint."""
+    return jsonify({"success": True, "message": "API is running"})
+
+if __name__ == '__main__':
+    print("🏋️  Starting Workout Tracker API...")
+    print("📊 API will be available at: http://localhost:5000")
+    print("🌐 Frontend should connect to: http://localhost:5000/api")
+    app.run(debug=True, host='0.0.0.0', port=5000)
