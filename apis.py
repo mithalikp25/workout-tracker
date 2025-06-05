@@ -11,6 +11,7 @@ import json
 import os
 import datetime
 from typing import Dict, List, Optional
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend communication
@@ -276,7 +277,7 @@ def get_stats():
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    return jsonify({"success": True, "message": "API is running"})
+    return jsonify({"status": "healthy"})
 
 # ==========================
 # Reminder Routes
@@ -310,33 +311,27 @@ def get_reminders():
 # ==========================
 
 @app.route('/api/goals', methods=['POST'])
-def set_weekly_goal():
-    """Set a new weekly goal."""
+def add_goal():
     try:
-        data = request.get_json()
-        session_goal = data.get('session_goal')
-        calorie_goal = data.get('calorie_goal')
-
-        if session_goal is None or calorie_goal is None:
-            return jsonify({"success": False, "error": "Both session_goal and calorie_goal are required"}), 400
-
-        goal = tracker.set_weekly_goal({
-            "session_goal": session_goal,
-            "calorie_goal": calorie_goal
-        })
-
+        goal_data = request.json
+        goal = {
+            'id': len(tracker.goals) + 1,
+            'type': goal_data['type'],
+            'target': goal_data['target'],
+            'deadline': goal_data['deadline'],
+            'completed': False
+        }
+        tracker.goals.append(goal)
+        tracker.save_goals()
         return jsonify({"success": True, "data": goal}), 201
-
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
 
 @app.route('/api/goals', methods=['GET'])
 def get_weekly_goal():
     """Get current weekly goal."""
     goal = tracker.get_weekly_goal()
     return jsonify({"success": True, "data": goal})
-
 
 @app.route('/api/goals/progress', methods=['GET'])
 def get_weekly_progress():
