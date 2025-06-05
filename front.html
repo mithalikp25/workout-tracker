@@ -88,6 +88,34 @@
             box-shadow: 0 8px 25px rgba(253, 121, 168, 0.6);
         }
 
+        .timer-container {
+      background: #00b894;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      text-align: center;
+      margin:20px;
+    }
+    .timer-display {
+      font-size: 30px;
+      margin-bottom: 25px;
+      color: #00796b;
+    }
+    .timer-button {
+      padding: 12px 25px;
+      margin: 0 10px;
+      font-size: 18px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #00796b;
+      color: white;
+      transition: background-color 0.3s ease;
+    }
+    .timer-button:hover {
+      background-color: #004d40;
+    }
+
         .content-section {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -325,6 +353,13 @@
             <p>Track Your Fitness Journey With Style!!</p>
         </div>
 
+        <div class="timer-container">
+    <div class="timer-display" id="timer">00:00:00</div>
+    <button class="timer-button" onclick="startTimer()">Start</button>
+    <button class="timer-button" onclick="stopTimer()">Stop</button>
+    <button class="timer-button" onclick="resetTimer()">Reset</button>
+  </div>
+
         <div class="nav-buttons">
             <button class="btn btn-primary" onclick="showSection('add-workout')">Add Workout</button>
             <button class="btn btn-secondary" onclick="showSection('view-workouts')">View Workouts</button>
@@ -424,6 +459,46 @@
                 document.getElementById('day-workouts').innerHTML = '<p>Select a day to view workouts.</p>';
             }
         }
+
+         let [hours, minutes, seconds] = [0, 0, 0];
+    let timerInterval = null;
+
+    function updateTimerDisplay() {
+      let h = hours < 10 ? '0' + hours : hours;
+      let m = minutes < 10 ? '0' + minutes : minutes;
+      let s = seconds < 10 ? '0' + seconds : seconds;
+      document.getElementById('timer').innerText = `${h}:${m}:${s}`;
+    }
+
+    function runTimer() {
+      seconds++;
+      if (seconds === 60) {
+        seconds = 0;
+        minutes++;
+        if (minutes === 60) {
+          minutes = 0;
+          hours++;
+        }
+      }
+      updateTimerDisplay();
+    }
+
+    function startTimer() {
+      if (timerInterval !== null) {
+        clearInterval(timerInterval);
+      }
+      timerInterval = setInterval(runTimer, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      [hours, minutes, seconds] = [0, 0, 0];
+      updateTimerDisplay();
+    }
 
         // Add exercise form
         function addExercise() {
