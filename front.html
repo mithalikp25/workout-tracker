@@ -116,6 +116,16 @@
       background-color: #004d40;
     }
 
+    .total-minutes-display {
+  margin-top: 20px;
+  font-size: 20px;
+  color: #333;
+  background: #00b894;
+padding:15px;
+margin:20px;
+}
+
+
         .content-section {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -516,6 +526,11 @@
     <button class="timer-button" onclick="resetTimer()">Reset</button>
   </div>
 
+  <div class="total-minutes-display">
+  Total Workout Time: <span id="totalMinutes">0</span> minutes
+</div>
+
+
         <div class="nav-buttons">
             <button class="btn btn-primary" onclick="showSection('add-workout')">Add Workout</button>
             <button class="btn btn-secondary" onclick="showSection('view-workouts')">View Workouts</button>
@@ -664,6 +679,52 @@
       [hours, minutes, seconds] = [0, 0, 0];
       updateTimerDisplay();
     }
+
+    let [hours, minutes, seconds] = [0, 0, 0];
+let timerInterval = null;
+let totalMinutes = 0;
+
+function updateTimerDisplay() {
+  let h = hours < 10 ? '0' + hours : hours;
+  let m = minutes < 10 ? '0' + minutes : minutes;
+  let s = seconds < 10 ? '0' + seconds : seconds;
+  document.getElementById('timer').innerText = `${h}:${m}:${s}`;
+}
+
+function runTimer() {
+  seconds++;
+  if (seconds === 60) {
+    seconds = 0;
+    minutes++;
+    if (minutes === 60) {
+      minutes = 0;
+      hours++;
+    }
+  }
+  updateTimerDisplay();
+}
+
+function startTimer() {
+  if (timerInterval !== null) {
+    clearInterval(timerInterval);
+  }
+  timerInterval = setInterval(runTimer, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  // Calculate total minutes for this session
+  let sessionMinutes = hours * 60 + minutes + Math.floor(seconds / 60);
+  totalMinutes += sessionMinutes;
+  document.getElementById('totalMinutes').innerText = totalMinutes;
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  [hours, minutes, seconds] = [0, 0, 0];
+  updateTimerDisplay();
+}
+
 
         // Add exercise form
         function addExercise() {
