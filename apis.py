@@ -2,6 +2,7 @@
 """
 Workout Tracker Backend API
 Flask-based REST API for the workout tracker application.
+Includes Workout Reminder functionality.
 """
 
 from flask import Flask, request, jsonify
@@ -17,7 +18,9 @@ CORS(app)  # Enable CORS for frontend communication
 class WorkoutTracker:
     def __init__(self, data_file: str = "workouts.json"):
         self.data_file = data_file
+        self.reminder_file = "reminders.json"
         self.workouts = self.load_data()
+        self.reminders = self.load_reminders()
     
     def load_data(self) -> List[Dict]:
         """Load workout data from JSON file."""
@@ -33,7 +36,42 @@ class WorkoutTracker:
         """Save workout data to JSON file."""
         with open(self.data_file, 'w') as f:
             json.dump(self.workouts, f, indent=2, default=str)
-    
+
+    def load_reminders(self) -> List[Dict]:
+        """Load reminders from a JSON file."""
+        if os.path.exists(self.reminder_file):
+            try:
+                with open(self.reminder_file, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                return []
+        return []
+
+    def save_reminders(self) -> None:
+        """Save reminders to a JSON file."""
+        with open(self.reminder_file, 'w') as f:
+            json.dump(self.reminders, f, indent=2, default=str)
+
+    def add_reminder(self, date: str, message: str) -> Dict:
+        """Add a new workout reminder."""
+        reminder = {
+            "id": len(self.reminders) + 1,
+            "date": date,
+            "message": message
+        }
+        self.reminders.append(reminder)
+        self.save_reminders()
+        return reminder
+
+    def get_upcoming_reminders(self) -> List[Dict]:
+        """Get reminders with a date in the future."""
+        now = datetime.datetime.now()
+        upcoming = [
+            r for r in self.reminders 
+            if datetime.datetime.fromisoformat(r['date']) > now
+        ]
+        return sorted(upcoming, key=lambda x: x['date'])
+
     def add_workout(self, workout_type: str, duration: int, exercises: List[Dict], 
                    notes: str = "", date: str = None) -> Dict:
         """Add a new workout session."""
@@ -102,7 +140,6 @@ class WorkoutTracker:
         total_duration = sum(w['duration_minutes'] for w in self.workouts)
         total_calories = sum(w['total_calories'] for w in self.workouts)
         
-        # Recent activity (last 30 days)
         thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
         recent_workouts = [
             w for w in self.workouts 
@@ -122,6 +159,10 @@ class WorkoutTracker:
             "recent_workouts_30d": len(recent_workouts),
             "workout_types": workout_types
         }
+
+# ==========================
+# Flask Routes
+# ==========================
 
 # Initialize tracker
 tracker = WorkoutTracker()
@@ -187,6 +228,37 @@ def get_stats():
 def health_check():
     """Health check endpoint."""
     return jsonify({"success": True, "message": "API is running"})
+
+# ==========================
+# Reminder Routes
+# ==========================
+
+@app.route('/api/reminders', methods=['POST'])
+def create_reminder():
+    """Add a new workout reminder."""
+    try:
+        data = request.get_json()
+        date = data.get('date')
+        message = data.get('message', 'Workout Reminder')
+
+        if not date:
+            return jsonify({"success": False, "error": "Missing 'date' field"}), 400
+
+        reminder = tracker.add_reminder(date=date, message=message)
+        return jsonify({"success": True, "data": reminder}), 201
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/reminders', methods=['GET'])
+def get_reminders():
+    """Get all upcoming reminders."""
+    reminders = tracker.get_upcoming_reminders()
+    return jsonify({"success": True, "data": reminders})
+
+# ==========================
+# Run the App
+# ==========================
 
 if __name__ == '__main__':
     print("🏋️  Starting Workout Tracker API...")
