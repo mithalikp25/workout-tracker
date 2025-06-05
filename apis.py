@@ -2,6 +2,7 @@
 """
 Workout Tracker Backend API
 Flask-based REST API for the workout tracker application.
+Includes Workout Reminder functionality and Weekly Goals Tracker.
 """
 
 from flask import Flask, request, jsonify
@@ -17,7 +18,11 @@ CORS(app)  # Enable CORS for frontend communication
 class WorkoutTracker:
     def __init__(self, data_file: str = "workouts.json"):
         self.data_file = data_file
+        self.reminder_file = "reminders.json"
+        self.goals_file = "goals.json"
         self.workouts = self.load_data()
+        self.reminders = self.load_reminders()
+        self.weekly_goal = self.load_goals()
     
     def load_data(self) -> List[Dict]:
         """Load workout data from JSON file."""
@@ -33,7 +38,42 @@ class WorkoutTracker:
         """Save workout data to JSON file."""
         with open(self.data_file, 'w') as f:
             json.dump(self.workouts, f, indent=2, default=str)
-    
+
+    def load_reminders(self) -> List[Dict]:
+        """Load reminders from a JSON file."""
+        if os.path.exists(self.reminder_file):
+            try:
+                with open(self.reminder_file, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                return []
+        return []
+
+    def save_reminders(self) -> None:
+        """Save reminders to a JSON file."""
+        with open(self.reminder_file, 'w') as f:
+            json.dump(self.reminders, f, indent=2, default=str)
+
+    def add_reminder(self, date: str, message: str) -> Dict:
+        """Add a new workout reminder."""
+        reminder = {
+            "id": len(self.reminders) + 1,
+            "date": date,
+            "message": message
+        }
+        self.reminders.append(reminder)
+        self.save_reminders()
+        return reminder
+
+    def get_upcoming_reminders(self) -> List[Dict]:
+        """Get reminders with a date in the future."""
+        now = datetime.datetime.now()
+        upcoming = [
+            r for r in self.reminders 
+            if datetime.datetime.fromisoformat(r['date']) > now
+        ]
+        return sorted(upcoming, key=lambda x: x['date'])
+
     def add_workout(self, workout_type: str, duration: int, exercises: List[Dict], 
                    notes: str = "", date: str = None) -> Dict:
         """Add a new workout session."""
@@ -102,7 +142,6 @@ class WorkoutTracker:
         total_duration = sum(w['duration_minutes'] for w in self.workouts)
         total_calories = sum(w['total_calories'] for w in self.workouts)
         
-        # Recent activity (last 30 days)
         thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
         recent_workouts = [
             w for w in self.workouts 
@@ -122,6 +161,57 @@ class WorkoutTracker:
             "recent_workouts_30d": len(recent_workouts),
             "workout_types": workout_types
         }
+
+    # --- Weekly Goals and Progress Feature ---
+
+    def load_goals(self) -> Dict:
+        """Load weekly goals from a JSON file."""
+        if os.path.exists(self.goals_file):
+            try:
+                with open(self.goals_file, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                return {}
+        return {}
+
+    def save_goals(self, goals: Dict) -> None:
+        """Save weekly goals to a JSON file."""
+        with open(self.goals_file, 'w') as f:
+            json.dump(goals, f, indent=2)
+
+    def set_weekly_goal(self, goal: Dict) -> Dict:
+        """Set or update a weekly goal."""
+        self.weekly_goal = goal
+        self.save_goals(goal)
+        return goal
+
+    def get_weekly_goal(self) -> Dict:
+        """Get the current weekly goal."""
+        return getattr(self, 'weekly_goal', {})
+
+    def get_weekly_progress(self) -> Dict:
+        """Calculate current week's workout progress toward the goal."""
+        start_of_week = datetime.datetime.now() - datetime.timedelta(days=datetime.datetime.now().weekday())
+        workouts_this_week = [
+            w for w in self.workouts 
+            if datetime.datetime.fromisoformat(w['date']) >= start_of_week
+        ]
+
+        total_sessions = len(workouts_this_week)
+        total_calories = sum(w['total_calories'] for w in workouts_this_week)
+
+        goal = self.get_weekly_goal()
+        return {
+            "sessions_completed": total_sessions,
+            "calories_burned": total_calories,
+            "session_goal": goal.get("session_goal", 0),
+            "calorie_goal": goal.get("calorie_goal", 0)
+        }
+
+
+# ==========================
+# Flask Routes
+# ==========================
 
 # Initialize tracker
 tracker = WorkoutTracker()
@@ -187,6 +277,76 @@ def get_stats():
 def health_check():
     """Health check endpoint."""
     return jsonify({"success": True, "message": "API is running"})
+
+# ==========================
+# Reminder Routes
+# ==========================
+
+@app.route('/api/reminders', methods=['POST'])
+def create_reminder():
+    """Add a new workout reminder."""
+    try:
+        data = request.get_json()
+        date = data.get('date')
+        message = data.get('message', 'Workout Reminder')
+
+        if not date:
+            return jsonify({"success": False, "error": "Missing 'date' field"}), 400
+
+        reminder = tracker.add_reminder(date=date, message=message)
+        return jsonify({"success": True, "data": reminder}), 201
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/reminders', methods=['GET'])
+def get_reminders():
+    """Get all upcoming reminders."""
+    reminders = tracker.get_upcoming_reminders()
+    return jsonify({"success": True, "data": reminders})
+
+# ==========================
+# Weekly Goals Routes
+# ==========================
+
+@app.route('/api/goals', methods=['POST'])
+def set_weekly_goal():
+    """Set a new weekly goal."""
+    try:
+        data = request.get_json()
+        session_goal = data.get('session_goal')
+        calorie_goal = data.get('calorie_goal')
+
+        if session_goal is None or calorie_goal is None:
+            return jsonify({"success": False, "error": "Both session_goal and calorie_goal are required"}), 400
+
+        goal = tracker.set_weekly_goal({
+            "session_goal": session_goal,
+            "calorie_goal": calorie_goal
+        })
+
+        return jsonify({"success": True, "data": goal}), 201
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/goals', methods=['GET'])
+def get_weekly_goal():
+    """Get current weekly goal."""
+    goal = tracker.get_weekly_goal()
+    return jsonify({"success": True, "data": goal})
+
+
+@app.route('/api/goals/progress', methods=['GET'])
+def get_weekly_progress():
+    """Get progress toward weekly goals."""
+    progress = tracker.get_weekly_progress()
+    return jsonify({"success": True, "data": progress})
+
+# ==========================
+# Run the App
+# ==========================
 
 if __name__ == '__main__':
     print("🏋️  Starting Workout Tracker API...")
