@@ -293,6 +293,162 @@
             text-align: center;
         }
 
+        .calendar-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+        }
+
+        .calendar-nav button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-nav button:hover {
+            background: #5a6fd6;
+        }
+
+        .calendar-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .calendar-grid th {
+            background: #f8f9fa;
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            color: #667eea;
+            border: 1px solid #e9ecef;
+        }
+
+        .calendar-grid td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+            position: relative;
+            height: 80px;
+            vertical-align: top;
+            background: white;
+        }
+
+        .calendar-grid td:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .calendar-day {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+            display: inline-block;
+            min-width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+        }
+
+        .calendar-day.today {
+            background: #e3f2fd;
+            border-radius: 50%;
+            color: #1976d2;
+            font-weight: bold;
+        }
+
+        .workout-indicators {
+            margin-top: 5px;
+            max-height: 40px;
+            overflow-y: auto;
+        }
+
+        .workout-indicator {
+            font-size: 0.8rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin: 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .workout-strength { background: #ffebee; color: #c62828; }
+        .workout-cardio { background: #e8f5e9; color: #2e7d32; }
+        .workout-yoga { background: #e3f2fd; color: #1565c0; }
+        .workout-mixed { background: #fff3e0; color: #ef6c00; }
+        .workout-other { background: #f3e5f5; color: #6a1b9a; }
+
+        .calendar-view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .calendar-view-toggle button {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-view-toggle button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .quick-add-workout {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+
+        .calendar-grid td:hover .quick-add-workout {
+            opacity: 1;
+        }
+
+        .day-workouts {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
         @media (max-width: 768px) {
             .nav-buttons {
                 flex-direction: column;
@@ -324,6 +480,7 @@
             <button class="btn btn-primary" onclick="showSection('add-workout')">Add Workout</button>
             <button class="btn btn-secondary" onclick="showSection('view-workouts')">View Workouts</button>
             <button class="btn btn-secondary" onclick="showSection('stats')">Statistics</button>
+            <button class="btn btn-secondary" onclick="showSection('calendar')">Calendar</button>
         </div>
 
         <div id="message-area"></div>
@@ -383,11 +540,24 @@
             <h2>Workout Statistics</h2>
             <div id="stats-content"></div>
         </div>
+
+        <!-- Calendar Section -->
+        <div id="calendar" class="content-section hidden">
+            <h2>Calendar View</h2>
+            <div class="calendar-view-toggle">
+                <button class="active" onclick="switchCalendarView('month')">Month</button>
+                <button onclick="switchCalendarView('week')">Week</button>
+            </div>
+            <div id="calendar-container" class="calendar-container"></div>
+            <div id="day-workouts" class="day-workouts"></div>
+        </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:5000/api';
         let exerciseCount = 0;
+        let currentCalendarView = 'month';
+        let currentDate = new Date();
 
         // Show/hide sections
         function showSection(sectionId) {
@@ -400,6 +570,8 @@
                 loadWorkouts();
             } else if (sectionId === 'stats') {
                 loadStats();
+            } else if (sectionId === 'calendar') {
+                generateCalendar();
             }
         }
 
@@ -737,6 +909,337 @@
                 
                 throw error;
             }
+        }
+
+        // Calendar functionality
+        function switchCalendarView(view) {
+            currentCalendarView = view;
+            document.querySelectorAll('.calendar-view-toggle button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            generateCalendar();
+        }
+
+        function generateCalendar() {
+            const container = document.getElementById('calendar-container');
+            container.innerHTML = '';
+
+            const header = document.createElement('div');
+            header.className = 'calendar-header';
+            
+            const monthYear = document.createElement('h3');
+            monthYear.textContent = currentDate.toLocaleString('default', { 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            
+            const nav = document.createElement('div');
+            nav.className = 'calendar-nav';
+            nav.innerHTML = `
+                <button onclick="navigateCalendar('prev')">←</button>
+                <button onclick="navigateCalendar('today')">Today</button>
+                <button onclick="navigateCalendar('next')">→</button>
+            `;
+            
+            header.appendChild(monthYear);
+            header.appendChild(nav);
+            container.appendChild(header);
+
+            if (currentCalendarView === 'month') {
+                generateMonthView(container);
+            } else {
+                generateWeekView(container);
+            }
+        }
+
+        function navigateCalendar(direction) {
+            if (direction === 'today') {
+                currentDate = new Date();
+            } else if (direction === 'prev') {
+                if (currentCalendarView === 'month') {
+                    currentDate.setMonth(currentDate.getMonth() - 1);
+                } else {
+                    currentDate.setDate(currentDate.getDate() - 7);
+                }
+            } else if (direction === 'next') {
+                if (currentCalendarView === 'month') {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                } else {
+                    currentDate.setDate(currentDate.getDate() + 7);
+                }
+            }
+            generateCalendar();
+        }
+
+        function generateMonthView(container) {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const firstDayWeekday = firstDay.getDay();
+
+            let table = '<table class="calendar-grid"><tr>';
+            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+                table += `<th>${day}</th>`;
+            });
+            table += '</tr><tr>';
+
+            // Pad empty cells for days before the first day
+            for (let i = 0; i < firstDayWeekday; i++) {
+                table += '<td></td>';
+            }
+
+            // Add day cells
+            for (let day = 1; day <= daysInMonth; day++) {
+                const currentDate = new Date(year, month, day);
+                const formattedDate = currentDate.toISOString().split('T')[0];
+                const isToday = isSameDay(currentDate, new Date());
+                
+                table += `
+                    <td onclick="loadWorkoutsByDate('${formattedDate}')">
+                        <div class="calendar-day ${isToday ? 'today' : ''}">${day}</div>
+                        <div class="workout-indicators" id="workouts-${formattedDate}"></div>
+                        <button class="quick-add-workout" onclick="event.stopPropagation(); showQuickAddWorkout('${formattedDate}')">+</button>
+                    </td>
+                `;
+
+                if ((day + firstDayWeekday) % 7 === 0 && day !== daysInMonth) {
+                    table += '</tr><tr>';
+                }
+            }
+
+            // Pad remaining cells
+            const remainingCells = 7 - ((daysInMonth + firstDayWeekday) % 7);
+            if (remainingCells < 7) {
+                for (let i = 0; i < remainingCells; i++) {
+                    table += '<td></td>';
+                }
+            }
+
+            table += '</tr></table>';
+            container.innerHTML += table;
+
+            // Load workout indicators for the month
+            loadMonthWorkouts(year, month);
+        }
+
+        function generateWeekView(container) {
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+
+            let table = '<table class="calendar-grid"><tr>';
+            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+                table += `<th>${day}</th>`;
+            });
+            table += '</tr><tr>';
+
+            for (let i = 0; i < 7; i++) {
+                const currentDate = new Date(startOfWeek);
+                currentDate.setDate(startOfWeek.getDate() + i);
+                const formattedDate = currentDate.toISOString().split('T')[0];
+                const isToday = isSameDay(currentDate, new Date());
+
+                table += `
+                    <td onclick="loadWorkoutsByDate('${formattedDate}')">
+                        <div class="calendar-day ${isToday ? 'today' : ''}">${currentDate.getDate()}</div>
+                        <div class="workout-indicators" id="workouts-${formattedDate}"></div>
+                        <button class="quick-add-workout" onclick="event.stopPropagation(); showQuickAddWorkout('${formattedDate}')">+</button>
+                    </td>
+                `;
+            }
+
+            table += '</tr></table>';
+            container.innerHTML += table;
+
+            // Load workout indicators for the week
+            loadWeekWorkouts(startOfWeek);
+        }
+
+        function isSameDay(date1, date2) {
+            return date1.getFullYear() === date2.getFullYear() &&
+                   date1.getMonth() === date2.getMonth() &&
+                   date1.getDate() === date2.getDate();
+        }
+
+        async function loadMonthWorkouts(year, month) {
+            try {
+                const response = await fetch(`${API_BASE}/workouts`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const workouts = result.data;
+                    const monthWorkouts = workouts.filter(workout => {
+                        const workoutDate = new Date(workout.date);
+                        return workoutDate.getFullYear() === year && 
+                               workoutDate.getMonth() === month;
+                    });
+
+                    // Group workouts by date
+                    const workoutsByDate = {};
+                    monthWorkouts.forEach(workout => {
+                        const date = workout.date.split('T')[0];
+                        if (!workoutsByDate[date]) {
+                            workoutsByDate[date] = [];
+                        }
+                        workoutsByDate[date].push(workout);
+                    });
+
+                    // Update indicators
+                    Object.entries(workoutsByDate).forEach(([date, workouts]) => {
+                        const container = document.getElementById(`workouts-${date}`);
+                        if (container) {
+                            container.innerHTML = workouts.map(workout => `
+                                <div class="workout-indicator workout-${workout.type.toLowerCase()}">
+                                    ${workout.type} (${workout.duration_minutes}m)
+                                </div>
+                            `).join('');
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load month workouts:', error);
+            }
+        }
+
+        async function loadWeekWorkouts(startDate) {
+            try {
+                const response = await fetch(`${API_BASE}/workouts`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const workouts = result.data;
+                    const weekWorkouts = workouts.filter(workout => {
+                        const workoutDate = new Date(workout.date);
+                        const endDate = new Date(startDate);
+                        endDate.setDate(startDate.getDate() + 7);
+                        return workoutDate >= startDate && workoutDate < endDate;
+                    });
+
+                    // Group workouts by date
+                    const workoutsByDate = {};
+                    weekWorkouts.forEach(workout => {
+                        const date = workout.date.split('T')[0];
+                        if (!workoutsByDate[date]) {
+                            workoutsByDate[date] = [];
+                        }
+                        workoutsByDate[date].push(workout);
+                    });
+
+                    // Update indicators
+                    Object.entries(workoutsByDate).forEach(([date, workouts]) => {
+                        const container = document.getElementById(`workouts-${date}`);
+                        if (container) {
+                            container.innerHTML = workouts.map(workout => `
+                                <div class="workout-indicator workout-${workout.type.toLowerCase()}">
+                                    ${workout.type} (${workout.duration_minutes}m)
+                                </div>
+                            `).join('');
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load week workouts:', error);
+            }
+        }
+
+        async function loadWorkoutsByDate(date) {
+            const workoutsContainer = document.getElementById('day-workouts');
+            workoutsContainer.innerHTML = '<div class="loading">Loading workouts...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/workouts`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const workouts = result.data.filter(workout => 
+                        workout.date.startsWith(date)
+                    );
+
+                    if (workouts.length === 0) {
+                        workoutsContainer.innerHTML = `<p>No workouts found on ${new Date(date).toLocaleDateString()}.</p>`;
+                        return;
+                    }
+
+                    workoutsContainer.innerHTML = `
+                        <h3>Workouts on ${new Date(date).toLocaleDateString()}</h3>
+                        ${workouts.map(workout => `
+                            <div class="workout-card">
+                                <div class="workout-header">
+                                    <div class="workout-title">${workout.type.charAt(0).toUpperCase() + workout.type.slice(1)} Workout</div>
+                                    <button class="btn btn-danger" onclick="deleteWorkout(${workout.id})" style="padding: 5px 10px; font-size: 12px;">Delete</button>
+                                </div>
+                                <div class="workout-stats">
+                                    <div class="stat-item">
+                                        <div class="stat-value">${workout.duration_minutes}</div>
+                                        <div class="stat-label">Minutes</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${workout.total_calories}</div>
+                                        <div class="stat-label">Calories</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${workout.exercises.length}</div>
+                                        <div class="stat-label">Exercises</div>
+                                    </div>
+                                </div>
+                                ${workout.notes ? `<p><strong>Notes:</strong> ${workout.notes}</p>` : ''}
+                                <div class="exercises-list">
+                                    <strong>Exercises:</strong><br>
+                                    ${workout.exercises.map(ex => `
+                                        <span class="exercise-tag">
+                                            ${ex.name} ${ex.sets && ex.reps ? `(${ex.sets}×${ex.reps})` : ''} 
+                                            ${ex.weight_kg ? `${ex.weight_kg}kg` : ''} 
+                                            ${ex.distance_km ? `${ex.distance_km}km` : ''}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    workoutsContainer.innerHTML = `<div class="error">Error loading workouts: ${result.error}</div>`;
+                }
+            } catch (error) {
+                workoutsContainer.innerHTML = `<div class="error">Failed to load workouts: ${error.message}</div>`;
+            }
+        }
+
+        function showQuickAddWorkout(date) {
+            const workoutType = prompt('Enter workout type (strength/cardio/yoga/mixed/other):');
+            if (!workoutType) return;
+
+            const duration = prompt('Enter duration in minutes:');
+            if (!duration) return;
+
+            const workoutData = {
+                type: workoutType,
+                duration_minutes: parseInt(duration),
+                exercises: [],
+                date: date
+            };
+
+            fetch(`${API_BASE}/workouts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(workoutData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showMessage('Workout added successfully! 🎉', 'success');
+                    generateCalendar();
+                    loadWorkoutsByDate(date);
+                } else {
+                    showMessage(`Error: ${result.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage(`Failed to add workout: ${error.message}`, 'error');
+            });
         }
     </script>
 </body>
