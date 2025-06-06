@@ -101,9 +101,10 @@ class WorkoutTracker:
         intensity_multiplier = 1.0
         
         for exercise in exercises:
-            if exercise.get('type', '').lower() in ['cardio', 'running', 'cycling']:
+            exercise_name = exercise.get('name', '').lower()
+            if any(cardio in exercise_name for cardio in ['run', 'cardio', 'cycle', 'swim', 'jog']):
                 intensity_multiplier += 0.3
-            elif exercise.get('type', '').lower() in ['strength', 'weightlifting', 'resistance']:
+            elif any(strength in exercise_name for strength in ['lift', 'weight', 'strength', 'resistance']):
                 intensity_multiplier += 0.2
         
         return int(duration * base_rate * intensity_multiplier)
@@ -177,11 +178,22 @@ class WorkoutTracker:
 
     def save_goals(self, goals: Dict) -> None:
         """Save weekly goals to a JSON file."""
+        if not isinstance(goals, dict):
+            raise ValueError("Goals must be a dictionary")
+        
         with open(self.goals_file, 'w') as f:
             json.dump(goals, f, indent=2)
 
     def set_weekly_goal(self, goal: Dict) -> Dict:
         """Set or update a weekly goal."""
+        if not isinstance(goal, dict):
+            raise ValueError("Goal must be a dictionary")
+        
+        required_fields = ['session_goal', 'calorie_goal']
+        for field in required_fields:
+            if field not in goal:
+                raise ValueError(f"Missing required field: {field}")
+        
         self.weekly_goal = goal
         self.save_goals(goal)
         return goal
@@ -192,10 +204,13 @@ class WorkoutTracker:
 
     def get_weekly_progress(self) -> Dict:
         """Calculate current week's workout progress toward the goal."""
-        start_of_week = datetime.datetime.now() - datetime.timedelta(days=datetime.datetime.now().weekday())
+        now = datetime.datetime.now()
+        start_of_week = now - datetime.timedelta(days=now.weekday())
+        start_of_week = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+        
         workouts_this_week = [
             w for w in self.workouts 
-            if datetime.datetime.fromisoformat(w['date']) >= start_of_week
+            if datetime.datetime.fromisoformat(w['date']).replace(tzinfo=None) >= start_of_week
         ]
 
         total_sessions = len(workouts_this_week)
@@ -206,7 +221,9 @@ class WorkoutTracker:
             "sessions_completed": total_sessions,
             "calories_burned": total_calories,
             "session_goal": goal.get("session_goal", 0),
-            "calorie_goal": goal.get("calorie_goal", 0)
+            "calorie_goal": goal.get("calorie_goal", 0),
+            "week_start": start_of_week.isoformat(),
+            "week_end": (start_of_week + datetime.timedelta(days=6)).isoformat()
         }
 
 
