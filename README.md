@@ -1,76 +1,96 @@
-# 🏋️ Workout Tracker
 
-A full-stack fitness tracking application that allows users to log, view, and analyze their workouts. The project consists of a Flask-based REST API backend and a modern, responsive HTML/JavaScript frontend.
 
----
+# 🏋️‍♀️ **Workout Tracker**
 
-## Table of Contents
-- [Features](#features)
-- [Screenshots](#screenshots)
-- [Getting Started](#getting-started)
-- [Backend API](#backend-api)
-- [Frontend Usage](#frontend-usage)
-- [Data Format](#data-format)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
+A full-stack fitness tracking application built with **Flask (Backend)** and **HTML/CSS/JavaScript (Frontend)** that allows users to **log, track, and visualize** their fitness journey with powerful features and a modern UI.
 
 ---
 
-## Features
-- Add detailed workout sessions with multiple exercises
-- Track workout type, duration, notes, and calories burned
-- View, filter, and delete past workouts
-- Visualize workout statistics (totals, averages, last 30 days, types)
-- Responsive, modern UI with smooth navigation
-- Persistent data storage in JSON file
+## 📑 Table of Contents
+
+* [✨ Features](#-features)
+* [🖼️ Screenshots](#️-screenshots)
+* [🚀 Getting Started](#-getting-started)
+* [📡 Backend API](#-backend-api)
+* [💻 Frontend Usage](#-frontend-usage)
+* [📁 Data Format](#-data-format)
+* [🛠️ Troubleshooting](#-troubleshooting)
+* [📄 License](#-license)
 
 ---
 
+## ✨ Features
 
-### Prerequisites
-- Python 3.7+
-- pip (Python package manager)
-
-### Installation
-1. **Clone the repository:**
-   ```bash
-   git clone <repo-url>
-   cd workout-tracker
-   ```
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### Running the Application
-1. **Start the backend server:**
-   ```bash
-   python apis.py
-   ```
-   The API will be available at [http://localhost:5000](http://localhost:5000)
-
-2. **Open the frontend:**
-   - Open `front.html` in your web browser.
-   - The frontend will connect to the backend API at `http://localhost:5000/api`.
+✅ Add and manage detailed workout sessions
+✅ Multiple exercise types: **Strength**, **Cardio**, etc.
+✅ Track workout **type**, **duration**, **notes**, and **calories burned**
+✅ Interactive **Calendar View** (Month/Week) with indicators
+✅ In-app **Stopwatch** ⏱️ for live timing
+✅ **Weekly Goals** setup and progress tracker 📈
+✅ **Workout Reminders** with alerts ⏰
+✅ Total **Time Recorder** for weekly/monthly summaries
+✅ Clean **UI subtitles**, intuitive navigation, and responsive layout
+✅ Personalized **logo** for branding
+✅ Visualize stats: **totals**, **averages**, **workout types**, **last 30 days**
+✅ Persistent data storage using a **JSON file**
 
 ---
 
-## Backend API
+## 🚀 Getting Started
 
-The backend is a Flask REST API. Main endpoints:
+### 🔧 Prerequisites
 
-### Health Check
-- `GET /api/health` — Returns API status.
+* Python 3.7 or higher
+* `pip` (Python package manager)
 
-### Workouts
-- `GET /api/workouts?limit=<n>` — List all workouts (optionally limit results)
-- `POST /api/workouts` — Add a new workout
-- `GET /api/workouts/<id>` — Get a specific workout by ID
-- `DELETE /api/workouts/<id>` — Delete a workout by ID
+### 📥 Installation
 
-#### Example: Add Workout
+```bash
+# 1. Clone the repository
+git clone <repo-url>
+cd workout-tracker
+
+# 2. Install Python dependencies
+pip install -r requirements.txt
+```
+
+### ▶️ Running the Application
+
+**Start the backend server:**
+
+```bash
+python apis.py
+```
+
+➡️ API will run at: `http://localhost:5000`
+
+**Open the frontend:**
+
+* Double-click or open `front.html` in your browser.
+* It connects to `http://localhost:5000/api`.
+
+---
+
+## 📡 Backend API
+
+Built with **Flask** and returns JSON responses.
+
+### ✅ Health Check
+
+```
+GET /api/health
+```
+
+### 🏋️ Workouts
+
+* `GET /api/workouts?limit=n` — Fetch workouts
+* `POST /api/workouts` — Add a new workout
+* `GET /api/workouts/<id>` — Get workout by ID
+* `DELETE /api/workouts/<id>` — Delete workout
+
+#### 📝 Example: Add Workout
+
 ```json
-POST /api/workouts
 {
   "type": "strength",
   "duration_minutes": 60,
@@ -82,21 +102,31 @@ POST /api/workouts
 }
 ```
 
-### Statistics
-- `GET /api/stats` — Returns workout stats (totals, averages, last 30 days, types)
+### 📊 Stats
+
+```
+GET /api/stats
+```
+
+Returns summary of workouts (averages, types, duration, calories, etc.)
 
 ---
 
-## Frontend Usage
-- **Add Workout:** Fill out the form, add exercises, and save.
-- **View Workouts:** Browse, filter, and delete past workouts.
-- **Statistics:** See totals, averages, and breakdowns by type.
+## 💻 Frontend Usage
+
+* ➕ **Add Workout** – via form interface
+* 📅 **Calendar View** – switch between Month and Week
+* ⏱️ **Stopwatch** – track live workout duration
+* 🎯 **Set Weekly Goals** – and monitor them
+* 🧠 **Smart Reminders** – don't miss a workout
+* 📈 **View Statistics** – by type, duration, and trends
 
 ---
 
-## Data Format
+## 📁 Data Format
 
-Workouts are stored in `workouts.json` (auto-created). Example entry:
+Stored in `workouts.json`. Example:
+
 ```json
 {
   "id": 1,
@@ -114,9 +144,13 @@ Workouts are stored in `workouts.json` (auto-created). Example entry:
 
 ---
 
-## Troubleshooting
-- **Cannot connect to backend:** Ensure you started the Flask server (`python apis.py`).
-- **CORS errors:** The backend enables CORS for local development. If you change ports, update `API_BASE` in `front.html`.
-- **Data not saving:** Check for write permissions in the project directory.
-- **Port in use:** Change the port in `apis.py` if 5000 is occupied.
+## 🛠️ Troubleshooting
 
+| Issue                       | Solution                                                             |
+| --------------------------- | -------------------------------------------------------------------- |
+| ❌ Cannot connect to backend | Make sure Flask server is running (`python apis.py`)                 |
+| ⚠️ CORS errors              | Check ports and make sure API\_BASE in frontend matches backend port |
+| 💾 Data not saving          | Ensure write permissions for `workouts.json` file                    |
+| 🛑 Port 5000 already in use | Change the port in `apis.py` and frontend API endpoint accordingly   |
+
+---
